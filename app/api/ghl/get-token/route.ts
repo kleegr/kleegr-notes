@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getValidToken } from '../../../../lib/ghl';
+import { getValidToken } from '@/lib/ghl';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -9,13 +9,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'locationId is required' }, { status: 400 });
   }
 
-  try {
-    const token = await getValidToken(locationId);
-    if (!token) {
-      return NextResponse.json({ error: 'Token not found or refresh failed' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, data: token });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  const result = await getValidToken(locationId);
+
+  if ('success' in result && !result.success) {
+    return NextResponse.json({ error: result.message }, { status: 404 });
   }
+
+  return NextResponse.json({ success: true, data: result });
 }

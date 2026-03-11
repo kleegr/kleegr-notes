@@ -4,7 +4,7 @@ import axios from 'axios';
 
 export default function OAuthCallback() {
   const [message, setMessage] = useState('Installing app...');
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [success, setSuccess] = useState<boolean | null>(null);
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -14,8 +14,8 @@ export default function OAuthCallback() {
     const run = async () => {
       const code = new URLSearchParams(window.location.search).get('code');
       if (!code) {
-        setMessage('No authorization code found.');
-        setStatus('error');
+        setMessage('❌ No authorization code found.');
+        setSuccess(false);
         return;
       }
 
@@ -23,15 +23,14 @@ export default function OAuthCallback() {
         const res = await axios.post('/api/ghl/save-token', { code });
         if (res.data?.success) {
           setMessage('✅ App Installed Successfully!');
-          setStatus('success');
+          setSuccess(true);
         } else {
-          setMessage('❌ ' + (res.data?.error || 'Installation failed.'));
-          setStatus('error');
+          setMessage('❌ Installation failed: ' + (res.data?.error || 'Unknown error'));
+          setSuccess(false);
         }
       } catch (err: any) {
-        console.error(err);
-        setMessage('❌ ' + (err?.response?.data?.error || 'Installation failed. Check console.'));
-        setStatus('error');
+        setMessage('❌ ' + (err.response?.data?.error || err.message));
+        setSuccess(false);
       }
     };
 
@@ -39,39 +38,14 @@ export default function OAuthCallback() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        gap: 16,
-        fontFamily: 'DM Mono, monospace',
-        background: '#0f0e0c',
-        color: '#f0ebe0',
-      }}
-    >
-      {status === 'loading' && (
-        <>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              border: '4px solid #2e2c28',
-              borderTop: '4px solid #d4a853',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }}
-          />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </>
-      )}
-      <h1 style={{ fontSize: 22, fontWeight: 600, color: status === 'error' ? '#c0503a' : '#d4a853' }}>
-        {message}
-      </h1>
-      {status !== 'loading' && (
-        <p style={{ fontSize: 13, color: '#7a7568' }}>You can close this tab.</p>
+    <div className="flex flex-col gap-6 w-full h-screen justify-center items-center text-center bg-gray-50">
+      {success === null ? (
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mb-4" />
+          <p className="text-xl font-semibold text-gray-700">{message}</p>
+        </div>
+      ) : (
+        <p className="text-3xl font-bold text-gray-800">{message}</p>
       )}
     </div>
   );
