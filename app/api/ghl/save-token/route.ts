@@ -1,63 +1,82 @@
 import { NextResponse } from 'next/server';
-import { upsertToken, getInstalledLocations, getLocationAccessToken } from '../../../../lib/ghl';
+import {
+  exchangeCodeForTokens,
+  getInstalledLocations,
+  getLocationAccessToken,
+  upsertToken,
+} from '@/lib/ghl';
 
 const APP_ID = process.env.NEXT_PUBLIC_GHL_APP_ID!;
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { appId, access_token, refresh_token, userType, companyId, locationId, userId } = body;
+    const { code } = await req.json();
+    if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
 
-    // ── Agency / Company install → save token for each installed location ──
-    const isAgency = userType === 'Company' || userType === 'Agency';
-    if (isAgency && companyId && access_token) {
-      const locations = await getInstalledLocations(companyId, appId || APP_ID, access_token);
-      const locArray = Array.isArray(locations) ? locations : [locations];
+    // Step 1: Exchange code for tokens
+    const ghlData = await exchangeCodeForTokens(code);
+
+    const {
+      access_token,
+      refresh_token,
+      userType,
+      companyId,
+      locationId,
+      userId,
+      expires_in,
+    } = ghlData;
+
+    // Step 2: If Agency/Company install — fetch and save all locations
+    if (userType === 'Company' || userType === 'Agency') {
+      const locations = await getInstalledLocations(companyId, APP_ID, access_token);
       const results: any[] = [];
 
-      for (const loc of locArray) {
+      for (const loc of locations) {
         const locId = loc?.id || loc?.locationId || loc?.location_id || loc?._id;
         if (!locId) continue;
 
-        try {
-          const locToken = await getLocationAccessToken(locId, access_token, companyId);
-          const record = await upsertToken({
-            app_id: appId || APP_ID,
-            access_token: locToken.access_token,
-            refresh_token: locToken.refresh_token,
-            user_type: userType,
-            company_id: companyId,
-            location_id: locId,
-            user_id: userId,
-            expires_in: locToken.expires_in,
-          });
-          results.push({ locationId: locId, success: true, data: record });
-        } catch (e: any) {
-          results.push({ locationId: locId, success: false, error: e.message });
+        const locTokenRes = await getLocationAccessToken(locId, companyId, access_token);
+        if (!locTokenRes.success) {
+          results.push({ locationId: locId, success: false, error: locTokenRes.data });
+          continue;
         }
+
+        const saved = await upsertToken({
+          app_id: APP_ID,
+          access_token: locTokenRes.data.access_token,
+          refresh_token: locTokenRes.data.refresh_token,
+          user_type: userType,
+          company_id: companyId,
+          location_id: locId,
+          user_id: userId,
+          expires_in: locTokenRes.data.expires_in,
+        });
+
+        results.push({ locationId: locId, success: true, id: saved.id });
       }
 
       return NextResponse.json({ success: true, results });
     }
 
-    // ── Location install ──────────────────────────────────────────────────────
-    if (!locationId || !access_token) {
-      return NextResponse.json({ error: 'Missing locationId or access_token' }, { status: 400 });
+    // Step 3: Location-level install
+    if (!locationId) {
+      return NextResponse.json({ error: 'Missing locationId for location install' }, { status: 400 });
     }
 
-    const record = await upsertToken({
-      app_id: appId || APP_ID,
+    const saved = await upsertToken({
+      app_id: APP_ID,
       access_token,
       refresh_token,
       user_type: userType,
-      company_id: companyId,
+      company_id: companyId || '',
       location_id: locationId,
       user_id: userId,
+      expires_in,
     });
 
-    return NextResponse.json({ success: true, message: 'Token saved', data: record });
+    return NextResponse.json({ success: true, data: saved });
   } catch (err: any) {
-    console.error('save-token error:', err);
-    return NextResponse.json({ error: 'Failed to save token', details: err.message }, { status: 500 });
+    console.error('[save-token]', err);
+    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
   }
 }

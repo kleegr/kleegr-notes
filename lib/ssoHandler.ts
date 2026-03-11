@@ -1,6 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CryptoJS from 'crypto-js';
+
+const SSO_KEY = process.env.NEXT_PUBLIC_GHL_SSO_KEY!;
 
 export interface SSOData {
   userId: string;
@@ -20,36 +22,30 @@ export interface SSOData {
   };
 }
 
-const SSO_KEY = process.env.NEXT_PUBLIC_GHL_SSO_KEY!;
-
 export function useSSOHandler() {
   const [ssoData, setSsoData] = useState<SSOData | null>(null);
+  const [ssoReady, setSsoReady] = useState(false);
 
-  const decryptPayload = (payload: string): SSOData | null => {
-    try {
-      const decrypted = CryptoJS.AES.decrypt(payload, SSO_KEY).toString(CryptoJS.enc.Utf8);
-      return JSON.parse(decrypted) as SSOData;
-    } catch (e) {
-      console.error('SSO decrypt failed', e);
-      return null;
-    }
-  };
-
-  const requestSSO = () => {
-    if (typeof window === 'undefined') return;
-
-    window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
-
-    const handler = (event: MessageEvent) => {
-      if (event.data?.message === 'REQUEST_USER_DATA_RESPONSE') {
-        window.removeEventListener('message', handler);
-        const parsed = decryptPayload(event.data.payload);
-        if (parsed) setSsoData(parsed);
+  useEffect(() => {
+    const handleMessage = ({ data }: MessageEvent) => {
+      if (data?.message === 'REQUEST_USER_DATA_RESPONSE') {
+        try {
+          const decrypted = CryptoJS.AES.decrypt(data.payload, SSO_KEY).toString(CryptoJS.enc.Utf8);
+          const parsed: SSOData = JSON.parse(decrypted);
+          setSsoData(parsed);
+          setSsoReady(true);
+        } catch (e) {
+          console.error('[SSO] Failed to decrypt/parse SSO payload', e);
+          setSsoReady(true);
+        }
       }
     };
 
-    window.addEventListener('message', handler);
-  };
+    window.addEventListener('message', handleMessage);
+    window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
 
-  return { ssoData, requestSSO };
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  return { ssoData, ssoReady };
 }
