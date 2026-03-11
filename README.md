@@ -1,6 +1,6 @@
 # Kleegr Notes
 
-A simple, elegant notes app with a dark editorial aesthetic.
+A beautiful notes app built with Next.js 14 and TypeScript.
 
 ## Features
 
@@ -8,12 +8,21 @@ A simple, elegant notes app with a dark editorial aesthetic.
 - Search notes by title or content
 - Auto-saves to localStorage
 - Live word count
-- Relative timestamps (e.g. "2h ago")
+- Relative timestamps
+- Dark editorial aesthetic
 
-## Usage
+## Getting Started
 
-Just open `index.html` in any browser — no build step, no dependencies, no server required.
+```bash
+npm install
+npm run dev
+```
 
-## Tech
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Plain HTML, CSS, and vanilla JavaScript. Zero dependencies.
+## Tech Stack
+
+- **Next.js 14** (App Router)
+- **TypeScript**
+- **CSS Modules**
+- **uuid** for note IDs
