@@ -1,3 +1,3 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
-export default nextConfig;
+// This file is intentionally left blank.
+// Next.js config is in next.config.mjs
+export {};
