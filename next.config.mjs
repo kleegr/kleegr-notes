@@ -1,3 +1,2 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
-export default nextConfig;
+// intentionally empty - config is in next.config.ts
+export {};
