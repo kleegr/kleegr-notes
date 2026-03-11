@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { SSOProvider } from '../components/SSOProvider';
 
 export const metadata: Metadata = {
   title: 'Kleegr Notes',
@@ -10,11 +9,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <SSOProvider>
-          {children}
-        </SSOProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

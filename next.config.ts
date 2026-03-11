@@ -1,14 +1,11 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Allow images from GHL/CDN for company logos
   images: {
-    // Allow data URLs for uploaded logos
-    dangerouslyAllowSVG: true,
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
+      { protocol: 'https', hostname: 'msgsndr-private.storage.googleapis.com' },
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
     ],
   },
 };

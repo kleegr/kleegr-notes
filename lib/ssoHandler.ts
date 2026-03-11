@@ -24,7 +24,7 @@ export interface SSOData {
 
 export function useSSOHandler() {
   const [ssoData, setSsoData] = useState<SSOData | null>(null);
-  const [ssoReady, setSsoReady] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(true);
 
   useEffect(() => {
     const handleMessage = ({ data }: MessageEvent) => {
@@ -33,10 +33,10 @@ export function useSSOHandler() {
           const decrypted = CryptoJS.AES.decrypt(data.payload, SSO_KEY).toString(CryptoJS.enc.Utf8);
           const parsed: SSOData = JSON.parse(decrypted);
           setSsoData(parsed);
-          setSsoReady(true);
         } catch (e) {
           console.error('[SSO] Failed to decrypt/parse SSO payload', e);
-          setSsoReady(true);
+        } finally {
+          setSsoLoading(false);
         }
       }
     };
@@ -44,8 +44,14 @@ export function useSSOHandler() {
     window.addEventListener('message', handleMessage);
     window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
 
-    return () => window.removeEventListener('message', handleMessage);
+    // Fallback: if no SSO response in 3s (e.g. running standalone), stop loading
+    const timeout = setTimeout(() => setSsoLoading(false), 3000);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearTimeout(timeout);
+    };
   }, []);
 
-  return { ssoData, ssoReady };
+  return { ssoData, ssoLoading };
 }

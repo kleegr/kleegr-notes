@@ -2,10 +2,9 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
-export default function OAuthCallbackPage() {
-  const [message, setMessage] = useState('Installation in Progress...');
-  const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
+export default function OAuthCallback() {
+  const [message, setMessage] = useState('Installing app...');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -13,27 +12,26 @@ export default function OAuthCallbackPage() {
     hasRun.current = true;
 
     const run = async () => {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (!code) {
+        setMessage('No authorization code found.');
+        setStatus('error');
+        return;
+      }
+
       try {
-        const code = new URLSearchParams(window.location.search).get('code');
-        if (!code) {
-          setMessage('❌ No authorization code found in URL.');
-          setLoading(false);
-          return;
-        }
-
         const res = await axios.post('/api/ghl/save-token', { code });
-
         if (res.data?.success) {
-          setSuccess(true);
           setMessage('✅ App Installed Successfully!');
+          setStatus('success');
         } else {
           setMessage('❌ ' + (res.data?.error || 'Installation failed.'));
+          setStatus('error');
         }
       } catch (err: any) {
         console.error(err);
         setMessage('❌ ' + (err?.response?.data?.error || 'Installation failed. Check console.'));
-      } finally {
-        setLoading(false);
+        setStatus('error');
       }
     };
 
@@ -41,19 +39,39 @@ export default function OAuthCallbackPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6 w-full h-screen justify-center items-center text-center bg-gray-50">
-      {loading ? (
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-          <h1 className="text-2xl font-semibold text-gray-700">{message}</h1>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-4">
-          <h1 className={`text-3xl font-bold ${success ? 'text-green-600' : 'text-red-600'}`}>{message}</h1>
-          {success && (
-            <p className="text-gray-500 text-sm">You can close this window and return to the app.</p>
-          )}
-        </div>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        gap: 16,
+        fontFamily: 'DM Mono, monospace',
+        background: '#0f0e0c',
+        color: '#f0ebe0',
+      }}
+    >
+      {status === 'loading' && (
+        <>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              border: '4px solid #2e2c28',
+              borderTop: '4px solid #d4a853',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </>
+      )}
+      <h1 style={{ fontSize: 22, fontWeight: 600, color: status === 'error' ? '#c0503a' : '#d4a853' }}>
+        {message}
+      </h1>
+      {status !== 'loading' && (
+        <p style={{ fontSize: 13, color: '#7a7568' }}>You can close this tab.</p>
       )}
     </div>
   );
