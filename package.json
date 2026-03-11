@@ -9,13 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "axios": "^1.7.9",
+    "crypto-js": "^4.2.0",
     "next": "15.2.6",
+    "qs": "^6.14.0",
     "react": "19.0.1",
     "react-dom": "19.0.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20",
+    "@types/qs": "^6.9.18",
     "@types/react": "19.0.1",
     "@types/react-dom": "19.0.1",
     "@types/uuid": "^9",
