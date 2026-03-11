@@ -5,13 +5,50 @@
   overflow: hidden;
 }
 
+/* ── Dark theme (default) ── */
+.root[data-theme='dark'] {
+  --bg: #0f0e0c;
+  --s1: #1a1916;
+  --s2: #232220;
+  --bd: #2e2c28;
+  --ac: #d4a853;
+  --ac2: #e8c278;
+  --tx: #f0ebe0;
+  --mu: #7a7568;
+  --rd: #c0503a;
+  background: var(--bg);
+  color: var(--tx);
+}
+
+/* ── Light theme ── */
+.root[data-theme='light'] {
+  --bg: #f7f5f0;
+  --s1: #ffffff;
+  --s2: #f0ede6;
+  --bd: #ddd9d0;
+  --ac: #b8832a;
+  --ac2: #d4a853;
+  --tx: #1a1916;
+  --mu: #8a8070;
+  --rd: #c0503a;
+  background: var(--bg);
+  color: var(--tx);
+}
+
+/* ── Transitions ── */
+.root, .root * {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
 .header {
-  padding: 16px 24px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--bd);
   background: var(--s1);
   display: flex;
   align-items: center;
+  gap: 12px;
   animation: slideDown 0.4s ease;
+  flex-shrink: 0;
 }
 
 @keyframes slideDown {
@@ -19,15 +56,87 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
-.logo {
+/* ── Company Logo Area ── */
+.logoArea {
+  flex-shrink: 0;
+}
+
+.logoImgWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.logoImg {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.logoRemove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  background: var(--rd);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 8px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.logoImgWrap:hover .logoRemove {
+  display: flex;
+}
+
+.logoUpload {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border: 1px dashed var(--bd);
+  border-radius: 4px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.logoUpload:hover {
+  border-color: var(--ac);
+  background: var(--s2);
+}
+
+.logoPlaceholder {
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+.logoUploadHint {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--mu);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Logo Text ── */
+.logoText {
   font-family: 'Playfair Display', serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--ac);
   letter-spacing: -0.3px;
+  flex-shrink: 0;
 }
 
-.logo span {
+.logoText span {
   font-family: 'DM Mono', monospace;
   font-size: 13px;
   font-weight: 400;
@@ -35,12 +144,41 @@
   margin-left: 6px;
 }
 
-.count {
+/* ── Header Right ── */
+.headerRight {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.count {
   font-size: 11px;
   color: var(--mu);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+/* ── Theme Toggle ── */
+.themeToggle {
+  background: none;
+  border: 1px solid var(--bd);
+  color: var(--mu);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s, transform 0.3s;
+  flex-shrink: 0;
+}
+
+.themeToggle:hover {
+  border-color: var(--ac);
+  color: var(--ac);
+  transform: rotate(20deg);
 }
 
 .app {
@@ -49,7 +187,7 @@
   overflow: hidden;
 }
 
-/* Sidebar */
+/* ── Sidebar ── */
 .sidebar {
   width: 260px;
   border-right: 1px solid var(--bd);
@@ -74,7 +212,7 @@
   width: 100%;
   padding: 9px 14px;
   background: var(--ac);
-  color: #0f0e0c;
+  color: #fff;
   border: none;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
@@ -165,7 +303,7 @@
   white-space: pre-line;
 }
 
-/* Editor */
+/* ── Editor ── */
 .editorPane {
   flex: 1;
   display: flex;
@@ -220,6 +358,7 @@
   flex: 1;
   padding: 24px 32px;
   overflow-y: auto;
+  background: var(--bg);
 }
 
 .bodyInput {
@@ -248,6 +387,7 @@
   color: var(--mu);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  background: var(--s1);
 }
 
 .saveIndicator {
@@ -277,6 +417,7 @@
   justify-content: center;
   color: var(--mu);
   gap: 10px;
+  background: var(--bg);
 }
 
 .emptyIcon {

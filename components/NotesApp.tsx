@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import Image from 'next/image';
 import styles from './NotesApp.module.css';
 
 type Note = {
@@ -16,6 +17,8 @@ export default function NotesApp() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('kleegr_notes');
@@ -24,8 +27,37 @@ export default function NotesApp() {
       setNotes(parsed);
       if (parsed.length) setActiveId(parsed[0].id);
     }
+    const savedTheme = (localStorage.getItem('kleegr_theme') as 'dark' | 'light') || 'dark';
+    setTheme(savedTheme);
+    const savedLogo = localStorage.getItem('kleegr_logo');
+    if (savedLogo) setLogoUrl(savedLogo);
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('kleegr_theme', theme);
+  }, [theme, mounted]);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setLogoUrl(dataUrl);
+      localStorage.setItem('kleegr_logo', dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoUrl(null);
+    localStorage.removeItem('kleegr_logo');
+  };
 
   const save = useCallback((updated: Note[]) => {
     setNotes(updated);
@@ -40,8 +72,7 @@ export default function NotesApp() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    const updated = [note, ...notes];
-    save(updated);
+    save([note, ...notes]);
     setActiveId(note.id);
   };
 
@@ -53,14 +84,10 @@ export default function NotesApp() {
   };
 
   const updateNote = (id: string, field: 'title' | 'body', value: string) => {
-    const updated = notes.map((n) =>
-      n.id === id ? { ...n, [field]: value, updatedAt: Date.now() } : n
-    );
-    save(updated);
+    save(notes.map((n) => (n.id === id ? { ...n, [field]: value, updatedAt: Date.now() } : n)));
   };
 
   const active = notes.find((n) => n.id === activeId) ?? null;
-
   const filtered = notes.filter(
     (n) =>
       n.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -80,14 +107,57 @@ export default function NotesApp() {
   if (!mounted) return null;
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-theme={theme}>
       <header className={styles.header}>
-        <div className={styles.logo}>Kleegr <span>notes</span></div>
-        <div className={styles.count}>{notes.length} note{notes.length !== 1 ? 's' : ''}</div>
+        {/* Company Logo Area */}
+        <div className={styles.logoArea}>
+          {logoUrl ? (
+            <div className={styles.logoImgWrap}>
+              <Image src={logoUrl} alt="Company logo" width={32} height={32} className={styles.logoImg} unoptimized />
+              <button className={styles.logoRemove} onClick={removeLogo} title="Remove logo">✕</button>
+            </div>
+          ) : (
+            <label className={styles.logoUpload} title="Upload company logo">
+              <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+              <span className={styles.logoPlaceholder}>🏢</span>
+              <span className={styles.logoUploadHint}>Add logo</span>
+            </label>
+          )}
+        </div>
+
+        <div className={styles.logoText}>Kleegr <span>notes</span></div>
+
+        <div className={styles.headerRight}>
+          <div className={styles.count}>{notes.length} note{notes.length !== 1 ? 's' : ''}</div>
+          {/* Dark/Light Mode Toggle */}
+          <button
+            className={styles.themeToggle}
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
+          </button>
+        </div>
       </header>
 
       <div className={styles.app}>
-        {/* Sidebar */}
         <aside className={styles.sidebar}>
           <div className={styles.sideTop}>
             <button className={styles.newBtn} onClick={newNote}>+ New Note</button>
@@ -122,7 +192,6 @@ export default function NotesApp() {
           </div>
         </aside>
 
-        {/* Editor */}
         <div className={styles.editorPane}>
           {active ? (
             <>

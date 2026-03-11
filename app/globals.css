@@ -2,25 +2,11 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --bg: #0f0e0c;
-  --s1: #1a1916;
-  --s2: #232220;
-  --bd: #2e2c28;
-  --ac: #d4a853;
-  --ac2: #e8c278;
-  --tx: #f0ebe0;
-  --mu: #7a7568;
-  --rd: #c0503a;
-}
-
 html, body {
   height: 100%;
-  background: var(--bg);
-  color: var(--tx);
   font-family: 'DM Mono', monospace;
 }
 
-* { scrollbar-width: thin; scrollbar-color: var(--bd) transparent; }
+* { scrollbar-width: thin; }
 
-::selection { background: var(--ac); color: var(--bg); }
+::selection { background: #d4a853; color: #0f0e0c; }
