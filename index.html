@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Kleegr Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f0e0c;--s1:#1a1916;--s2:#232220;--bd:#2e2c28;--ac:#d4a853;--tx:#f0ebe0;--mu:#7a7568;--rd:#c0503a}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--tx);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{padding:16px 24px;border-bottom:1px solid var(--bd);background:var(--s1);display:flex;align-items:center}
+.logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--ac)}
+.logo span{color:var(--mu);font-family:'DM Mono',monospace;font-size:13px;font-weight:400;margin-left:6px}
+#cnt{margin-left:auto;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
+.app{display:flex;flex:1;overflow:hidden}
+.side{width:260px;border-right:1px solid var(--bd);background:var(--s1);display:flex;flex-direction:column}
+.side-top{padding:14px}
+.nbtn{width:100%;padding:9px;background:var(--ac);color:#0f0e0c;border:none;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:.2s}
+.nbtn:hover{background:#e8c278}
+.srch{padding:10px 14px;border-bottom:1px solid var(--bd)}
+.srch input{width:100%;background:var(--s2);border:1px solid var(--bd);color:var(--tx);font-family:'DM Mono',monospace;font-size:12px;padding:7px 10px;outline:none;transition:.2s}
+.srch input:focus{border-color:var(--ac)}
+.srch input::placeholder{color:var(--mu)}
+.nlist{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+.ni{padding:12px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .15s}
+.ni:hover{background:var(--s2)}
+.ni.on{background:var(--s2);border-left:2px solid var(--ac)}
+.nt{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.np{font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nd{font-size:10px;color:var(--mu);margin-top:5px;opacity:.7}
+.enil{padding:28px 14px;text-align:center;color:var(--mu);font-size:11px;line-height:2}
+.ep{flex:1;display:flex;flex-direction:column}
+.etb{padding:10px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;background:var(--s1)}
+.etb input{flex:1;background:transparent;border:none;font-family:'Playfair Display',serif;font-size:18px;color:var(--tx);outline:none}
+.etb input::placeholder{color:var(--mu)}
+.dbt{background:none;border:1px solid var(--bd);color:var(--mu);width:30px;height:30px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:.2s}
+.dbt:hover{border-color:var(--rd);color:var(--rd)}
+.ebody{flex:1;padding:24px 32px;overflow-y:auto}
+.ebody textarea{width:100%;height:100%;background:transparent;border:none;color:var(--tx);font-family:'DM Mono',monospace;font-size:13px;line-height:1.9;outline:none;resize:none}
+.ebody textarea::placeholder{color:var(--mu)}
+.efoot{padding:8px 20px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em}
+.si{display:flex;align-items:center;gap:5px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--ac);animation:pl 2s infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.3}}
+.est{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mu);gap:10px}
+.est .ic{font-size:40px;opacity:.25}
+.est p{font-size:12px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ac);color:#0f0e0c;padding:9px 16px;font-size:11px;font-family:'DM Mono',monospace;z-index:999;transform:translateY(16px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Kleegr <span>notes</span></div>
+  <div id="cnt">0 notes</div>
+</header>
+<div class="app">
+  <aside class="side">
+    <div class="side-top"><button class="nbtn" onclick="newNote()">+ New Note</button></div>
+    <div class="srch"><input type="text" id="sq" placeholder="Search..." oninput="renderList(this.value)"></div>
+    <div class="nlist" id="nl"></div>
+  </aside>
+  <div class="ep" id="ep">
+    <div class="est"><div class="ic">&#128221;</div><p>Select or create a note</p></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+let notes=JSON.parse(localStorage.getItem('kn')||'[]'),aid=null,st=null;
+function save(){localStorage.setItem('kn',JSON.stringify(notes));document.getElementById('cnt').textContent=notes.length+' note'+(notes.length!==1?'s':'')}
+function renderList(q){
+  q=q||'';
+  var nl=document.getElementById('nl'),f=q.toLowerCase();
+  var r=notes.filter(function(n){return n.t.toLowerCase().indexOf(f)>=0||n.b.toLowerCase().indexOf(f)>=0});
+  if(!r.length){nl.innerHTML='<div class="enil">'+(q?'No matches':'No notes yet.<br>Click + New Note')+'</div>';return}
+  nl.innerHTML=r.map(function(n){return '<div class="ni'+(n.id===aid?' on':'')+'" onclick="openNote(\''+n.id+'\')"><div class="nt">'+(n.t||'Untitled')+'</div><div class="np">'+(n.b.replace(/\n/g,' ')||'Empty')+'</div><div class="nd">'+ago(n.u)+'</div></div>'}).join('')
+}
+function ago(ts){var d=new Date(ts),now=new Date(),df=now-d;if(df<6e4)return'Just now';if(df<36e5)return Math.floor(df/6e4)+'m ago';if(df<864e5)return Math.floor(df/36e5)+'h ago';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function openNote(id){
+  aid=id;var n=notes.find(function(x){return x.id===id});if(!n)return;
+  document.getElementById('ep').innerHTML='<div class="etb"><input value="'+esc(n.t)+'" placeholder="Title..." oninput="ut(this.value)" id="ti"><button class="dbt" onclick="del(\''+n.id+'\')" title="Delete">&#128465;</button></div><div class="ebody"><textarea placeholder="Start writing..." oninput="ub(this.value)" id="bi">'+esc(n.b)+'</textarea></div><div class="efoot"><div class="si"><div class="dot"></div>Auto-saved</div><span id="wc">'+wc(n.b)+' words</span></div>';
+  renderList(document.getElementById('sq').value);
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function wc(s){return s.split(/\s+/).filter(Boolean).length}
+function ut(v){var n=notes.find(function(x){return x.id===aid});if(!n)return;n.t=v;n.u=Date.now();sched()}
+function ub(v){var n=notes.find(function(x){return x.id===aid});if(!n)return;n.b=v;n.u=Date.now();var w=document.getElementById('wc');if(w)w.textContent=wc(v)+' words';sched()}
+function sched(){clearTimeout(st);st=setTimeout(function(){save();renderList(document.getElementById('sq').value)},500)}
+function newNote(){
+  var n={id:'n'+Date.now(),t:'',b:'',c:Date.now(),u:Date.now()};
+  notes.unshift(n);save();renderList('');openNote(n.id);
+  setTimeout(function(){var t=document.getElementById('ti');if(t)t.focus()},50);
+  showToast('New note created');
+}
+function del(id){
+  if(!confirm('Delete this note?'))return;
+  notes=notes.filter(function(n){return n.id!==id});aid=null;save();renderList('');
+  document.getElementById('ep').innerHTML='<div class="est"><div class="ic">&#128221;</div><p>Select or create a note</p></div>';
+  showToast('Note deleted');
+}
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+save();renderList('');if(notes.length)openNote(notes[0].id);
+</script>
+</body>
+</html>
