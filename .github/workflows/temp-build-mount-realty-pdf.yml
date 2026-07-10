@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'pdf-build-trigger.txt'
+  pull_request:
+    branches: [main]
 
 jobs:
   build-pdf:
