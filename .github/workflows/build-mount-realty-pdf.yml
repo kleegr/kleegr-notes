@@ -16,6 +16,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+      - name: Fix callout macros
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/mount-realty-kleegr-master-spec.tex')
+          s = p.read_text()
+          old = r'''\newcommand{\callout}[2]{\begin{center}\fcolorbox{#1}{#2}{\begin{minipage}{0.93\linewidth}\vspace{5pt}\small}}
+\newcommand{\endcallout}{\vspace{5pt}\end{minipage}}\end{center}}'''
+          new = r'''\newcommand{\callout}[2]{\begin{quote}\color{#1}\small}
+\newcommand{\endcallout}{\end{quote}}'''
+          if old not in s:
+              raise SystemExit('Expected macro block not found')
+          p.write_text(s.replace(old, new))
+          PY
       - name: Build PDF
         run: |
           cd artifacts
