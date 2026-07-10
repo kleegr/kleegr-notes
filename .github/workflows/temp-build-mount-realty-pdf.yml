@@ -1,0 +1,37 @@
+name: Temporary Build Mount Realty PDF
+
+on:
+  push:
+    paths:
+      - 'pdf-build-trigger.txt'
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+      - name: Get source and build
+        run: |
+          git clone --depth 1 --branch generated/mount-realty-spec-final-2026-07-10 https://github.com/kleegr/kleegr-notes.git source-repo
+          cd source-repo/artifacts
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('mount-realty-kleegr-master-spec.tex')
+          s = p.read_text()
+          old = "\\newcommand{\\callout}[2]{\\begin{center}\\fcolorbox{#1}{#2}{\\begin{minipage}{0.93\\linewidth}\\vspace{5pt}\\small}}\n\\newcommand{\\endcallout}{\\vspace{5pt}\\end{minipage}}\\end{center}}"
+          new = "\\newcommand{\\callout}[2]{\\begin{quote}\\color{#1}\\small}\n\\newcommand{\\endcallout}{\\end{quote}}"
+          if old not in s:
+              raise SystemExit('Expected macro block not found')
+          p.write_text(s.replace(old, new))
+          PY
+          pdflatex -interaction=nonstopmode -halt-on-error mount-realty-kleegr-master-spec.tex
+          pdflatex -interaction=nonstopmode -halt-on-error mount-realty-kleegr-master-spec.tex
+          mv mount-realty-kleegr-master-spec.pdf Mount_Realty_Kleegr_Master_Project_Specification.pdf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mount_Realty_Kleegr_Master_Project_Specification
+          path: source-repo/artifacts/Mount_Realty_Kleegr_Master_Project_Specification.pdf
