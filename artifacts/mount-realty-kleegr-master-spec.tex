@@ -1,0 +1,880 @@
+\documentclass[10pt]{article}
+\usepackage[letterpaper,margin=0.67in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{multicol}
+\usepackage{parskip}
+\usepackage{lastpage}
+\usepackage{microtype}
+
+\definecolor{navy}{HTML}{17324D}
+\definecolor{blue}{HTML}{245C88}
+\definecolor{teal}{HTML}{177D77}
+\definecolor{gold}{HTML}{B97916}
+\definecolor{red}{HTML}{A93636}
+\definecolor{lightblue}{HTML}{EDF5FA}
+\definecolor{lightteal}{HTML}{EDF8F6}
+\definecolor{lightgold}{HTML}{FFF7E8}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\definecolor{darkgray}{HTML}{4B5563}
+
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,pdftitle={Mount Realty Kleegr Inventory System Master Specification},pdfauthor={Prepared for Mount Realty}}
+\setlist[itemize]{leftmargin=1.35em,itemsep=2pt,topsep=4pt}
+\setlist[enumerate]{leftmargin=1.55em,itemsep=2pt,topsep=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\LTpre}{3pt}
+\setlength{\LTpost}{5pt}
+\renewcommand{\arraystretch}{1.22}
+\sloppy
+\raggedbottom
+
+\titleformat{\section}{\Large\bfseries\color{navy}}{\thesection.}{0.45em}{}
+\titleformat{\subsection}{\large\bfseries\color{blue}}{\thesubsection}{0.45em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{teal}}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{darkgray}Mount Realty / Kleegr Inventory System}
+\fancyhead[R]{\small\color{darkgray}Master Project Specification}
+\fancyfoot[L]{\small\color{darkgray}Rewritten July 10, 2026}
+\fancyfoot[R]{\small\color{darkgray}Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+\newcommand{\key}[1]{\texttt{\small #1}}
+\newcommand{\callout}[2]{\begin{center}\fcolorbox{#1}{#2}{\begin{minipage}{0.93\linewidth}\vspace{5pt}\small}}
+\newcommand{\endcallout}{\vspace{5pt}\end{minipage}}\end{center}}
+\newcommand{\req}{\textcolor{red}{\textbf{Required}}}
+\newcommand{\cond}{\textcolor{gold}{\textbf{Conditional}}}
+\newcommand{\opt}{\textcolor{teal}{\textbf{Optional}}}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\vspace*{0.65in}
+{\Huge\bfseries\color{navy}Mount Realty\par}
+\vspace{0.12in}
+{\LARGE\bfseries\color{blue}Kleegr Project, Building \& Unit Inventory System\par}
+\vspace{0.24in}
+{\Large Rewritten Master Project Specification and Implementation Plan\par}
+\vspace{0.42in}
+\color{teal}\rule{\linewidth}{2.2pt}
+\vspace{0.38in}
+
+\begin{tabularx}{\linewidth}{>{\bfseries\color{navy}}p{1.65in}X}
+Prepared for & Mount Realty\\
+Primary platform & Kleegr CRM, backed by the current HighLevel-compatible account and custom objects\\
+Core records & Projects, Buildings, Units, Contacts and Opportunities\\
+Primary deliverables & Import Center, relationship-safe data loading, inventory dashboard, opportunity-to-unit synchronization and reporting\\
+Document status & Updated replacement for the original project setup PDF\\
+Version date & July 10, 2026\\
+\end{tabularx}
+
+\vfill
+\callout{blue}{lightblue}
+\textbf{Purpose of this document.} This is not a copy of the original PDF. It is a newly written, consolidated specification that preserves the original business goal while incorporating the discoveries, corrected import rules and portal decisions made during implementation planning.
+\endcallout
+\vfill
+{\small\color{darkgray}Confidential working specification. API tokens, credentials and private integration secrets are intentionally excluded.}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+Mount Realty needs one reliable inventory system for real estate Projects, Buildings and Units inside Kleegr. The CRM already contains three custom objects for this hierarchy. The finished system must allow administrators to load inventory in bulk, connect every record correctly, keep unit availability accurate, connect sales opportunities to units, calculate inventory totals automatically and provide a clear operational portal.
+
+The solution is not simply an Excel uploader. It is a controlled inventory data system with five responsibilities:
+\begin{enumerate}
+\item Receive structured inventory files and validate them before any CRM write occurs.
+\item Create or update Projects, Buildings and Units without duplication.
+\item Build the correct parent-child relationships between Project, Building and Unit records.
+\item Treat Unit status as the operational source of truth and roll totals upward to Buildings and Projects.
+\item Synchronize an Opportunity's sales stage with the associated Unit without double-counting or silently corrupting inventory.
+\end{enumerate}
+
+\callout{gold}{lightgold}
+\textbf{Critical implementation reality.} A visual AI Studio prototype can design the screens, but a frontend-only application cannot safely hold the CRM token or perform reliable production imports. The real system requires a server-side backend for file parsing, validation, API calls, retries, audit logging and import execution.
+\endcallout
+
+The first usable release should prioritize the Import Center and trustworthy CRM writes. The inventory dashboard and opportunity synchronization should be built only after object creation, matching and associations have been proven against the live account.
+
+\section{Product Vision}
+The product should feel like a simple internal Kleegr application used by office staff every day. A user should be able to open the portal, upload one inventory batch, understand exactly what will happen, fix errors before import and receive a complete report afterward.
+
+The system should eliminate these common operational problems:
+\begin{itemize}
+\item Duplicate Projects, Buildings or Units created by repeat uploads.
+\item Units attached to the wrong Building or Project.
+\item Inventory counts manually typed and becoming inconsistent.
+\item Sales opportunities reserving or selling the same Unit more than once.
+\item Staff changing a pipeline stage without the Unit record reflecting the change.
+\item Failed imports that leave the user unsure which records were created.
+\item API failures hidden behind a generic success message.
+\end{itemize}
+
+\subsection{Business Outcomes}
+The completed system should provide:
+\begin{itemize}
+\item One searchable source of truth for all active real estate inventory.
+\item A repeatable upload process for a full Project, a single Building or standalone Units.
+\item Accurate counts for total, available, reserved, under-contract and sold inventory.
+\item Clear visibility from Project to Building to Unit and from Opportunity to Unit.
+\item Safe re-imports that update existing records instead of duplicating them.
+\item An auditable history of every import and every automated inventory change.
+\end{itemize}
+
+\section{Guiding Principles}
+\begin{enumerate}
+\item \textbf{Validate before writing.} Uploading a file must never immediately write to the CRM.
+\item \textbf{Units are the count source.} Project and Building totals are calculated from Unit records, not trusted from spreadsheets.
+\item \textbf{Relationships use stable IDs.} Names are labels, not dependable relationship keys.
+\item \textbf{Re-imports must be idempotent.} Processing the same file twice must not duplicate records.
+\item \textbf{One active Unit stage.} Even if the CRM field technically supports multiple selections, the business system permits only one active inventory stage.
+\item \textbf{No hidden partial success.} Every failed or skipped record must appear in the import report.
+\item \textbf{Server-side secrets only.} Tokens and credentials never belong in browser code, screenshots, downloadable reports or logs.
+\item \textbf{Live CRM data must be labeled honestly.} Simulated or sample data must never be presented as a completed integration.
+\end{enumerate}
+
+\section{Scope}
+\subsection{Included in the Master Scope}
+\begin{itemize}
+\item CRM discovery and API contract verification.
+\item Project, Building and Unit custom-object integration.
+\item Excel and CSV upload portal.
+\item Online template viewer and static template download link.
+\item Validation, preview, matching, create/update and import reports.
+\item Project-to-Building and Building-to-Unit associations.
+\item Opportunity-to-Unit association.
+\item Seller Contact-to-Project association where supported and approved.
+\item Unit inventory status rules and count rollups.
+\item Project, Building and Unit search and detail views.
+\item Opportunity-driven Unit status automation.
+\item Import history, API diagnostics, retries and audit trail.
+\item Desktop-first administration with usable mobile review screens.
+\end{itemize}
+
+\subsection{Not Included in the First Import Release}
+\begin{itemize}
+\item Rebuilding the entire Kleegr CRM.
+\item Replacing Contacts, Conversations, Calendars or the standard opportunity pipeline.
+\item Public customer-facing inventory pages.
+\item Payments, contracts, invoicing or document generation.
+\item Automatic data cleanup of unrelated historical CRM records.
+\item Unreviewed deletion of existing Projects, Buildings, Units or Opportunities.
+\end{itemize}
+
+\section{Confirmed CRM Foundation}
+The discovery report confirmed the following custom objects and identifiers. These values should be configuration, not scattered hard-coded strings.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{1.25in}p{2.25in}X}
+\toprule
+Object & Object key & Object ID\\
+\midrule
+Project & \key{custom\_objects.projects} & \key{6a3d6638a203481f18d46483}\\
+Building & \key{custom\_objects.buildings} & \key{6a47df17cac2ac453506991a}\\
+Unit & \key{custom\_objects.units} & \key{6a47dfc4416f7e873476b759}\\
+\bottomrule
+\end{tabularx}
+
+The discovered CRM location is \key{UpjC8IK37wMzeb1pc9D0}. The Mount Realty pipeline was also readable during discovery. Pipeline and stage identifiers should be loaded dynamically from the CRM so the system does not break when an administrator renames or reorders a stage.
+
+\callout{red}{lightgray}
+\textbf{Association warning.} The first discovery attempt did not reliably return the object associations. Therefore, the relationship endpoint, association keys and direction must be confirmed with read-only tests and a small controlled write test before bulk import is enabled.
+\endcallout
+
+\section{Canonical Data Model}
+\subsection{Hierarchy}
+The intended hierarchy is:
+
+\begin{center}
+\textbf{Seller Contact} $\rightarrow$ \textbf{Project} $\rightarrow$ \textbf{Building} $\rightarrow$ \textbf{Unit}
+\end{center}
+
+An Opportunity may be associated directly with one Unit:
+
+\begin{center}
+\textbf{Opportunity} $\rightarrow$ \textbf{Unit}
+\end{center}
+
+The Project and Building levels are optional for standalone Unit imports, but when a Project exists it must contain at least one Building, and every Building must contain at least one Unit.
+
+\subsection{Required Relationship Rules}
+\begin{itemize}
+\item One Project may contain many Buildings.
+\item One Building belongs to no more than one Project in the operational model.
+\item One Building may contain many Units.
+\item One Unit belongs to no more than one Building in the operational model.
+\item One active sales Opportunity should reserve no more than one Unit unless a future multi-unit deal type is explicitly designed.
+\item A Unit must not be actively reserved by more than one open Opportunity.
+\item A Seller Contact may be connected to one or more Projects if the CRM association model permits it.
+\end{itemize}
+
+\subsection{Source of Truth}
+The Unit record is the source of truth for inventory state. Project and Building counts are derived summaries. The spreadsheet is a source of incoming data, not the permanent source of truth after import.
+
+The field \key{inventory\_deducted} is a guard and audit indicator. It must not replace recalculation from Unit stage. This prevents a stale Yes/No value from corrupting totals.
+
+\section{Stable Identity Strategy}
+The upload needs four IDs with different jobs. A single universal ID is not enough because it would collapse multiple Buildings and Units into one relationship group.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{1.55in}p{1.0in}X}
+\toprule
+ID & Uniqueness & Purpose\\
+\midrule
+Import Row ID & Unique per row & Identifies the source line for validation, errors and reports.\\
+Project Import ID & Shared by Project rows & Groups every Building and Unit belonging to the same Project.\\
+Building Import ID & Shared by Building rows & Groups every Unit belonging to the same Building.\\
+Unit Import ID & Unique per Unit & Identifies one Unit for create/update and future re-imports.\\
+\bottomrule
+\end{tabularx}
+
+\subsection{Required Schema Enhancement}
+Reliable re-imports require permanent external IDs. Before production launch, add or confirm fields equivalent to:
+\begin{itemize}
+\item Project External Import ID on Project.
+\item Building External Import ID on Building.
+\item Unit External Import ID on Unit.
+\end{itemize}
+
+If these fields cannot be added, the backend must maintain a durable mapping table between external import IDs and CRM record IDs. Session-only mapping is not sufficient because a later file must be able to update the same record safely.
+
+\subsection{Matching Priority}
+\begin{enumerate}
+\item Match by permanent External Import ID.
+\item If no external ID exists, match Project by Project Code and Building by Building Code.
+\item For Units, use Unit External Import ID. As a temporary fallback only, match by Building plus Unit Number.
+\item Names alone are not safe matching keys.
+\item Any ambiguous match becomes a blocking error and requires human resolution.
+\end{enumerate}
+
+\section{Unit Inventory Lifecycle}
+The portal and workflows must normalize Unit status into the following model.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{1.35in}p{1.4in}p{1.35in}X}
+\toprule
+Business state & Availability field & Stage field & Other behavior\\
+\midrule
+Available & Available & Blank & Inventory Deducted = No; Locked Date blank unless preserved for history.\\
+Reserved / Locked & Not Available & Reserved/Locked & Inventory Deducted = Yes; set Locked Date when first reserved.\\
+Under Contract & Not Available & Under Contract & Inventory Deducted = Yes.\\
+Closed / Sold & Not Available & Closed/Sold & Inventory Deducted = Yes.\\
+\bottomrule
+\end{tabularx}
+
+\subsection{Consistency Rules}
+\begin{itemize}
+\item Available Units must have a blank Stage.
+\item A Unit with Reserved/Locked, Under Contract or Closed/Sold must be Not Available.
+\item Multiple active stage values are rejected.
+\item A sold Unit cannot be returned to Available automatically. Reversal requires an authorized manual action with a reason.
+\item Moving backward from Under Contract to Reserved may be automated only when the opportunity mapping is unambiguous.
+\item Cancelling a reservation may release the Unit, but only if no other active Opportunity is associated with it.
+\end{itemize}
+
+\section{Inventory Count Rules}
+Counts must be recalculated from Unit records after every import and every relevant Opportunity change.
+
+For each Building:
+\begin{itemize}
+\item Total Units = count of all associated Units.
+\item Available Units = Availability is Available and Stage is blank.
+\item Reserved / Locked Units = Stage is Reserved/Locked.
+\item Under Contract Units = Stage is Under Contract.
+\item Sold Units = Stage is Closed/Sold.
+\end{itemize}
+
+For each Project, apply the same rules across all Units in all associated Buildings.
+
+\subsection{Count Fields}
+Project rollups write to:
+\begin{itemize}
+\item \key{custom\_objects.projects.total\_units}
+\item \key{custom\_objects.projects.available\_units}
+\item \key{custom\_objects.projects.reserved\_\_locked\_units}
+\item \key{custom\_objects.projects.under\_contract\_units}
+\item \key{custom\_objects.projects.sold\_units}
+\item \key{custom\_objects.projects.recalc\_requested}
+\end{itemize}
+
+Building rollups write to:
+\begin{itemize}
+\item \key{custom\_objects.buildings.total\_units}
+\item \key{custom\_objects.buildings.available\_units}
+\item \key{custom\_objects.buildings.reserved\_\_locked\_units}
+\item \key{custom\_objects.buildings.under\_contract\_units}
+\item \key{custom\_objects.buildings.sold\_units}
+\item \key{custom\_objects.buildings.recalc\_requested}
+\end{itemize}
+
+If Total Units does not equal the sum of the four status buckets, the dashboard must show an Unclassified count and identify the inconsistent Units. It must not hide the discrepancy.
+
+\section{Import Center}
+\subsection{Portal Flow}
+The Import Center should contain these steps:
+\begin{enumerate}
+\item Template and instructions.
+\item Upload file.
+\item Parse and validate.
+\item Review Project, Building and Unit previews.
+\item Resolve blocking errors.
+\item Confirm import.
+\item Execute server-side job.
+\item Display and download the final report.
+\item Store import history for later review and retry.
+\end{enumerate}
+
+The preferred format is XLSX. XLS and CSV may be accepted if parsing is reliable. Only the sheet named \textbf{Inventory Import} should be processed from an Excel workbook.
+
+\subsection{Supported Batch Types}
+\subsubsection{Project + Buildings + Units}
+Exactly one Project Import ID is permitted in the file. The Project must contain one or more Buildings, and every Building must contain one or more Units.
+
+\subsubsection{Building + Units}
+Exactly one Building Import ID is permitted in the file. No Project is required. The Building must contain one or more Units.
+
+\subsubsection{Units Only}
+One or more standalone Units may be uploaded. Project Import ID and Building Import ID may be blank.
+
+\callout{blue}{lightblue}
+\textbf{Batch rule.} A Project cannot be uploaded without Buildings and Units. A Building cannot be uploaded without Units. Units may be uploaded without either parent.
+\endcallout
+
+\subsection{Required Upload Columns}
+The canonical upload contains 30 columns. Each row represents one Unit.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.36in}>{\raggedright\arraybackslash}p{2.15in}>{\raggedright\arraybackslash}p{1.0in}>{\raggedright\arraybackslash}p{3.15in}}
+\toprule
+No. & Column & Rule & Purpose / mapping\\
+\midrule
+\endhead
+1 & Import Row ID & Required & Unique source-row identifier.\\
+2 & Import Mode & Required & Project + Buildings + Units; Building + Units; or Units Only.\\
+3 & Project Import ID & Conditional & Required in Project mode; shared by all rows in the Project.\\
+4 & Building Import ID & Conditional & Required in Project and Building modes; shared by Units in the Building.\\
+5 & Unit Import ID & Required & Unique stable Unit identifier.\\
+6 & Project Name & Conditional & Maps to \key{custom\_objects.projects.projects}.\\
+7 & Project Code & Conditional & Maps to \key{custom\_objects.projects.project\_code}.\\
+8 & Project Status & Optional & Maps to \key{custom\_objects.projects.project\_status}.\\
+9 & Project Property Type & Optional & Maps to \key{custom\_objects.projects.property\_type}.\\
+10 & Project Address & Optional & Maps to \key{custom\_objects.projects.address}.\\
+11 & Building Name & Conditional & Maps to \key{custom\_objects.buildings.building\_name}.\\
+12 & Building Code & Optional & Maps to \key{custom\_objects.buildings.building\_code}.\\
+13 & Building Address & Optional & Maps to \key{custom\_objects.buildings.building\_address}.\\
+14 & Building Status & Optional & Maps to \key{custom\_objects.buildings.building\_status}.\\
+15 & Unit Name & Required & Maps to \key{custom\_objects.units.unit\_name}.\\
+16 & Unit Number & Required & Maps to \key{custom\_objects.units.unit\_number}.\\
+17 & Available / Not Available & Optional & Maps to \key{custom\_objects.units.availablenot\_available}.\\
+18 & Stage & Optional & Maps to \key{custom\_objects.units.stages}.\\
+19 & Rooms & Optional & Maps to \key{custom\_objects.units.rooms}.\\
+20 & Bedrooms & Optional & Maps to \key{custom\_objects.units.bedrooms}.\\
+21 & Floor & Optional & Maps to \key{custom\_objects.units.floor}.\\
+22 & Style & Optional & Maps to \key{custom\_objects.units.style}.\\
+23 & Total SF & Optional & Maps to \key{custom\_objects.units.total\_sf}.\\
+24 & Move-in Ready & Optional & Maps to \key{custom\_objects.units.movein\_ready}.\\
+25 & Asking / Sale Price & Optional & Maps to \key{custom\_objects.units.asking\_\_sale\_price}.\\
+26 & Price Per SF & Optional & Maps to \key{custom\_objects.units.price\_per\_sf}.\\
+27 & Inventory Deducted? & Optional & Maps to \key{custom\_objects.units.inventory\_deducted}.\\
+28 & Locked Date & Optional & Maps to \key{custom\_objects.units.locked\_date}.\\
+29 & Import Notes & Optional & Stored in import history unless a CRM field is approved.\\
+30 & Skip Row? & Optional & Yes means validate and report, but do not import.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Allowed Values}
+\begin{multicols}{2}
+\textbf{Project Status}
+\begin{itemize}
+\item Active
+\item Nearly Sold Out
+\item Sold Out
+\item Coming Soon
+\item Inactive
+\item Data Review Needed
+\end{itemize}
+
+\textbf{Project Property Type}
+\begin{itemize}
+\item Condo
+\item Rental
+\item Mixed Use
+\end{itemize}
+
+\textbf{Building Status}
+\begin{itemize}
+\item Active
+\item Coming Soon
+\item Partially Available
+\item Reserved / Locked
+\item Under Contract
+\item Sold Out
+\item Inactive
+\end{itemize}
+
+\textbf{Unit Availability}
+\begin{itemize}
+\item Available
+\item Not Available
+\end{itemize}
+
+\textbf{Unit Stage}
+\begin{itemize}
+\item Reserved/Locked
+\item Under Contract
+\item Closed/Sold
+\end{itemize}
+
+\textbf{Unit Style}
+\begin{itemize}
+\item Flat
+\item L Flat
+\item Up \& Down
+\item Walk In
+\item 3 Story
+\item Other
+\item Unknown
+\end{itemize}
+\end{multicols}
+
+\subsection{Validation Rules}
+Blocking errors include:
+\begin{itemize}
+\item Missing or changed header names.
+\item Duplicate Import Row ID.
+\item Duplicate Unit Import ID.
+\item More than one Project Import ID in Project mode.
+\item More than one Building Import ID in Building mode.
+\item Project rows without a Building or Unit.
+\item Building rows without a Unit.
+\item Missing required names, codes or Unit numbers for the selected mode.
+\item Invalid option values.
+\item Multiple Unit stages on one row.
+\item Contradictory availability and stage values.
+\item Ambiguous CRM match.
+\item A Unit Import ID already mapped to a different Building.
+\item A Building Import ID already mapped to a different Project.
+\end{itemize}
+
+Warnings include:
+\begin{itemize}
+\item Missing optional price, square footage, floor, style or address.
+\item Price Per SF differs materially from Price divided by Total SF.
+\item A record name changed while the stable external ID stayed the same.
+\item A Project or Building status conflicts with calculated inventory state.
+\item An existing CRM record contains values that will be replaced.
+\end{itemize}
+
+\subsection{Preview Requirements}
+Before import, show summary cards for total rows, skipped rows, Projects, Buildings, Units, creates, updates, warnings and blocking errors.
+
+Preview tabs must include Projects, Buildings, Units, Errors and Warnings. Each preview record should show:
+\begin{itemize}
+\item Action: Create, Update, Skip or Error.
+\item Source Import Row IDs.
+\item Matching CRM record ID when found.
+\item Existing values and proposed values for changed fields.
+\item Parent association that will be created.
+\item Reason for every warning, skip or error.
+\end{itemize}
+
+\section{Import Execution}
+\subsection{Order of Operations}
+After explicit confirmation, execute in this order:
+\begin{enumerate}
+\item Create an Import Job with file hash, user, timestamp and validation snapshot.
+\item Lock the job against duplicate execution.
+\item Create or update the Project when applicable.
+\item Create or update the Building when applicable.
+\item Create or update all Units.
+\item Create Project-to-Building associations.
+\item Create Building-to-Unit associations.
+\item Recalculate Building totals.
+\item Recalculate Project totals.
+\item Verify the final CRM state by reading records back.
+\item Finalize the Import Report.
+\end{enumerate}
+
+\subsection{Idempotency}
+The backend must calculate a file hash and use stable external IDs. Re-running the same confirmed job should return the prior result unless the user deliberately creates a new revision. API retries must be safe and must not create duplicate records or duplicate associations.
+
+\subsection{Partial Failure Policy}
+A failed Unit must not make the system report the entire file as successful. The job should continue where safe, then finish as Success, Success With Warnings, Partial Failure or Failed.
+
+The report must identify exactly which records were created before failure. Retrying the failed items must use the same external IDs and update or continue, not duplicate.
+
+\subsection{Final Import Report}
+The report should include:
+\begin{itemize}
+\item Import job ID, filename, file hash, user and timestamps.
+\item Total rows, skipped rows, warning count and error count.
+\item Projects created and updated.
+\item Buildings created and updated.
+\item Units created and updated.
+\item Association results.
+\item Count recalculation results.
+\item API failures with safe error details and request correlation IDs.
+\item A downloadable CSV and copyable text summary.
+\end{itemize}
+
+\section{Inventory Portal and Dashboard}
+After the Import Center is stable, build the inventory workspace.
+
+\subsection{Dashboard}
+The dashboard should show:
+\begin{itemize}
+\item Total Projects, Buildings and Units.
+\item Available, Reserved/Locked, Under Contract and Sold counts.
+\item Units with inconsistent status.
+\item Recent imports and failed jobs.
+\item Projects with recalculation requested or mismatched totals.
+\item Units reserved without a valid Opportunity association.
+\end{itemize}
+
+\subsection{Inventory Browser}
+Users should be able to:
+\begin{itemize}
+\item Search by Project, Building, Unit name, Unit number, code or address.
+\item Filter by Project, Building, availability, stage, rooms, bedrooms, floor, style, price and square footage.
+\item Expand a Project to see Buildings and expand a Building to see Units.
+\item Open a Unit detail page showing inventory state, price, physical details, parent records and linked Opportunity.
+\item Open the corresponding CRM record in a new tab.
+\item Export the current filtered inventory view.
+\end{itemize}
+
+\subsection{Manual Corrections}
+Authorized users may correct a Unit, but every change must show the previous value, new value, actor, timestamp and reason. High-risk changes such as Sold to Available should require a confirmation step and should trigger count recalculation.
+
+\section{Opportunity-to-Unit Synchronization}
+\subsection{Association Requirement}
+An Opportunity must be associated with a Unit before inventory automation can run. The Opportunity should also remain connected to its Contact through the standard CRM model.
+
+\subsection{Stage Mapping}
+The exact pipeline stage mapping must be configured from the live pipeline. Do not assume that the visible stage name alone is permanent. Store pipeline ID and stage ID, while displaying the current stage name to users.
+
+A typical mapping is:
+\begin{itemize}
+\item Reservation / lock stage $\rightarrow$ Unit Reserved/Locked.
+\item Contract stage $\rightarrow$ Unit Under Contract.
+\item Closed / won stage $\rightarrow$ Unit Closed/Sold.
+\item Cancelled / lost stage $\rightarrow$ controlled release review.
+\end{itemize}
+
+The current Mount Realty pipeline contains general sales-process stages as well as later contract and customer steps. A business owner must approve which exact stage IDs change inventory. The system must not infer this from similar wording.
+
+\subsection{Double-Reservation Protection}
+Before reserving a Unit, the backend must check:
+\begin{itemize}
+\item The Unit is currently Available.
+\item No other open Opportunity has an active reservation on the Unit.
+\item The Opportunity-to-Unit association is unique and valid.
+\item The transition is not a duplicate event already processed.
+\end{itemize}
+
+If any check fails, do not overwrite the Unit. Create an exception record and alert an administrator.
+
+\subsection{Reversal Rules}
+A lost or cancelled Opportunity may release a reserved Unit only when:
+\begin{itemize}
+\item The Unit is not sold.
+\item No other active Opportunity depends on the reservation.
+\item The workflow event is newer than the last processed event.
+\item The user or approved automation provides a release reason.
+\end{itemize}
+
+\section{Backend Architecture}
+\subsection{Recommended Components}
+\begin{itemize}
+\item Kleegr-branded React frontend for the portal.
+\item Server-side API layer using TypeScript and Node.js.
+\item Secure environment variables for CRM credentials.
+\item Relational database for import jobs, external-ID mappings, audit logs and retry state.
+\item Background job worker for large imports and rate-limited CRM writes.
+\item Object storage or a private temporary upload location for source files.
+\item Central CRM client with timeouts, retries, rate-limit handling and safe logging.
+\end{itemize}
+
+\subsection{Frontend Responsibilities}
+The browser may upload files, display previews, request confirmation and show reports. It must not contain the CRM token, call privileged write endpoints directly or claim an import succeeded before the backend verifies it.
+
+\subsection{Backend Responsibilities}
+The backend handles file parsing, validation, matching, CRM reads and writes, associations, rollups, job locking, audit logs, retries and final verification.
+
+\section{Security and Data Protection}
+\begin{itemize}
+\item Store tokens only in server-side secret storage.
+\item Rotate the temporary full-access token after development.
+\item Never place a token in frontend JavaScript, local storage, screenshots or downloadable reports.
+\item Redact authorization headers, phone numbers and sensitive record data from logs.
+\item Require authenticated users and role-based permission for imports and manual corrections.
+\item Restrict file type, file size, row count and formula content.
+\item Treat spreadsheet cells beginning with formula characters as untrusted when exporting CSV.
+\item Validate every CRM record belongs to the configured location before updating it.
+\item Keep an audit trail for writes, associations, status changes and rollbacks.
+\item Separate test and production environments.
+\end{itemize}
+
+\section{Reliability and Observability}
+The system should include:
+\begin{itemize}
+\item API timeouts and retry rules for transient failures.
+\item Respect for CRM rate limits and Retry-After responses.
+\item Per-job progress and heartbeat.
+\item Dead-letter handling for items that fail repeatedly.
+\item Correlation IDs connecting the portal, backend job and CRM requests.
+\item Health checks for the application, database, queue and CRM connectivity.
+\item Metrics for import duration, API errors, duplicate prevention and association failures.
+\item Safe resume after worker restart.
+\item A reconciliation command that recalculates every Project and Building from Units.
+\end{itemize}
+
+\section{AI Studio Role and Limitation}
+AI Studio may be used to prototype the portal interface and generate frontend components. It should not be treated as proof of live CRM integration when its environment is frontend-only.
+
+A production-ready result requires one of these outcomes:
+\begin{enumerate}
+\item AI Studio supports secure server functions and the token remains server-side; or
+\item The AI Studio frontend calls a separately deployed authenticated backend; or
+\item The portal is moved to a full-stack deployment platform.
+\end{enumerate}
+
+The earlier simulated import screen should be considered disposable. Build from a clean specification, and label any simulated behavior until the backend is connected.
+
+\section{Implementation Roadmap}
+\subsection{Phase 0: Discovery and Contract Verification}
+\begin{itemize}
+\item Confirm all object field keys and data types.
+\item Confirm association endpoints, keys and direction.
+\item Confirm create, search, update and pagination behavior for all three custom objects.
+\item Confirm pipeline and stage IDs.
+\item Confirm Opportunity-to-Unit association capability.
+\item Create controlled test records and remove them after verification.
+\end{itemize}
+
+\textbf{Exit gate:} A written API contract and successful read/create/update/associate test for one Project, one Building and two Units.
+
+\subsection{Phase 1: Backend Foundation}
+\begin{itemize}
+\item Secure configuration and authentication.
+\item CRM client with retries and redacted logs.
+\item Database tables for Import Job, Import Item, External ID Mapping and Audit Event.
+\item File upload storage and job queue.
+\end{itemize}
+
+\subsection{Phase 2: Parser, Template and Validation}
+\begin{itemize}
+\item Parse XLSX, XLS and CSV.
+\item Implement the 30-column schema.
+\item Validate batch hierarchy, IDs, values and consistency.
+\item Build preview screens and error export.
+\end{itemize}
+
+\subsection{Phase 3: CRM Upsert Engine}
+\begin{itemize}
+\item Add permanent external import ID fields or mapping table.
+\item Create/update Projects, Buildings and Units.
+\item Prove safe re-import and duplicate prevention.
+\item Verify every write by reading the record back.
+\end{itemize}
+
+\subsection{Phase 4: Associations and Rollups}
+\begin{itemize}
+\item Create Project-to-Building and Building-to-Unit associations.
+\item Add count recalculation.
+\item Build reconciliation and mismatch reporting.
+\end{itemize}
+
+\subsection{Phase 5: Inventory Dashboard}
+\begin{itemize}
+\item Summary dashboard, hierarchy browser, filters and Unit detail.
+\item Manual correction workflow with audit trail.
+\item Import history and retry interface.
+\end{itemize}
+
+\subsection{Phase 6: Opportunity Synchronization}
+\begin{itemize}
+\item Confirm Opportunity-to-Unit association.
+\item Approve pipeline stage mapping.
+\item Add reservation, contract, sold and controlled release workflows.
+\item Add double-reservation protection and exception queue.
+\end{itemize}
+
+\subsection{Phase 7: QA and Production Hardening}
+\begin{itemize}
+\item Automated unit, integration and end-to-end tests.
+\item Load test with realistic inventory files.
+\item Token rotation, backup, rollback and recovery drills.
+\item Staff acceptance testing and written operating instructions.
+\end{itemize}
+
+\section{Acceptance Criteria}
+The Import Center is accepted only when all of the following are proven:
+\begin{enumerate}
+\item A valid Project file creates one Project, multiple Buildings and all Units with correct associations.
+\item A valid Building file creates one Building and its Units without requiring a Project.
+\item A valid Units Only file creates standalone Units.
+\item A Project without Buildings or Units is blocked.
+\item A Building without Units is blocked.
+\item A file with two Project Import IDs is blocked in Project mode.
+\item Duplicate Import Row IDs and Unit Import IDs are blocked.
+\item Re-importing the same file does not create duplicates.
+\item Updating a value under the same External Import ID updates the correct CRM record.
+\item Ambiguous matches are blocked rather than guessed.
+\item Every association is verified after write.
+\item Project and Building totals equal the derived Unit counts.
+\item A partially failed import identifies every successful and failed item.
+\item No token appears in browser source, logs or reports.
+\item A user without import permission cannot execute a job.
+\end{enumerate}
+
+The Opportunity automation is accepted only when:
+\begin{enumerate}
+\item One configured pipeline stage reserves a Unit exactly once.
+\item A second Opportunity cannot reserve the same Unit.
+\item Contract and sold transitions update the Unit correctly.
+\item Replayed workflow events do not double-change inventory.
+\item Cancellation cannot automatically reopen a sold Unit.
+\item Every automated change has an audit event and count recalculation.
+\end{enumerate}
+
+\section{QA Test Scenarios}
+At minimum, test:
+\begin{itemize}
+\item One Project, one Building, one Unit.
+\item One Project, multiple Buildings, many Units.
+\item Building-only batch.
+\item Units-only batch.
+\item Duplicate file replay.
+\item Renamed Project with same external ID.
+\item Unit moved to a different Building, which should block pending review.
+\item Invalid option spelling and extra whitespace normalization.
+\item Missing required fields by mode.
+\item Contradictory Available plus Reserved stage.
+\item CRM API timeout halfway through a job.
+\item Rate-limit response and delayed retry.
+\item Worker restart during import.
+\item Association failure after successful record creation.
+\item Count mismatch and reconciliation.
+\item Opportunity reservation conflict.
+\item Cancelled reservation and sold reversal protection.
+\end{itemize}
+
+\section{Developer Completion Report}
+After every development phase, the developer should return:
+\begin{enumerate}
+\item Objective completed.
+\item Files and services created or changed.
+\item CRM endpoints used.
+\item Field keys and association keys confirmed.
+\item Screens completed.
+\item Tests run and results.
+\item Sample data used.
+\item Known limitations and blocked items.
+\item Security review notes.
+\item Deployment status.
+\item Exact manual testing steps for Mount Realty.
+\item Recommended next phase.
+\end{enumerate}
+
+Claims such as ``connected,'' ``working'' or ``imported'' must include evidence from live read-back or test results. A frontend toast is not evidence.
+
+\section{Open Decisions and Risks}
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.0in}>{\raggedright\arraybackslash}p{4.65in}}
+\toprule
+Decision / risk & Required resolution\\
+\midrule
+Association API not confirmed & Confirm exact endpoints, association keys, direction and permission before bulk writes.\\
+Permanent external IDs & Add CRM fields or approve a durable backend mapping table. Production importer should not launch without one.\\
+Pipeline stage mapping & Business owner must approve exact stage IDs that reserve, contract, sell and release inventory.\\
+Project and Building status automation & Decide which statuses remain manual and which may be derived from Units.\\
+Standalone Units & Decide whether they remain unassociated permanently or enter a review queue for later assignment.\\
+Historical data cleanup & Decide whether existing duplicate or inconsistent records are included in a separate migration project.\\
+Import size & Set a supported row limit and background-job timeout based on real API rate limits.\\
+AI Studio hosting & Confirm secure server capability or deploy a separate backend.\\
+\bottomrule
+\end{longtable}
+
+\section{Immediate First Assignment}
+Before additional portal features are built, the developer should complete and document this discovery gate:
+\begin{enumerate}
+\item Read every current pipeline and stage.
+\item Read the Project, Building and Unit schemas, field IDs, field keys, types and options.
+\item Confirm existing data volume and identify duplicate or incomplete records.
+\item Confirm association definitions and API behavior.
+\item Confirm create, update, search, pagination and rate-limit behavior.
+\item Confirm available workflow triggers and webhooks for Opportunity stage changes.
+\item Confirm whether AI Studio can securely call server-side functions.
+\item Produce a final integration matrix showing Confirmed, Limited, Blocked or Requires Workaround.
+\end{enumerate}
+
+Only after this gate passes should the developer enable confirmed CRM writes in the Import Center.
+
+\section{Appendix A: Confirmed V1 Field Mapping}
+\subsection{Project}
+\begin{tabularx}{\linewidth}{p{2.15in}X}
+Project Name & \key{custom\_objects.projects.projects}\\
+Project Code & \key{custom\_objects.projects.project\_code}\\
+Project Status & \key{custom\_objects.projects.project\_status}\\
+Property Type & \key{custom\_objects.projects.property\_type}\\
+Address & \key{custom\_objects.projects.address}\\
+Total Units & \key{custom\_objects.projects.total\_units}\\
+Available Units & \key{custom\_objects.projects.available\_units}\\
+Reserved / Locked Units & \key{custom\_objects.projects.reserved\_\_locked\_units}\\
+Under Contract Units & \key{custom\_objects.projects.under\_contract\_units}\\
+Sold Units & \key{custom\_objects.projects.sold\_units}\\
+Recalc Requested & \key{custom\_objects.projects.recalc\_requested}\\
+\end{tabularx}
+
+\subsection{Building}
+\begin{tabularx}{\linewidth}{p{2.15in}X}
+Building Name & \key{custom\_objects.buildings.building\_name}\\
+Building Code & \key{custom\_objects.buildings.building\_code}\\
+Building Address & \key{custom\_objects.buildings.building\_address}\\
+Building Status & \key{custom\_objects.buildings.building\_status}\\
+Total Units & \key{custom\_objects.buildings.total\_units}\\
+Available Units & \key{custom\_objects.buildings.available\_units}\\
+Reserved / Locked Units & \key{custom\_objects.buildings.reserved\_\_locked\_units}\\
+Under Contract Units & \key{custom\_objects.buildings.under\_contract\_units}\\
+Sold Units & \key{custom\_objects.buildings.sold\_units}\\
+Recalc Requested & \key{custom\_objects.buildings.recalc\_requested}\\
+\end{tabularx}
+
+\subsection{Unit}
+\begin{tabularx}{\linewidth}{p{2.15in}X}
+Unit Name & \key{custom\_objects.units.unit\_name}\\
+Unit Number & \key{custom\_objects.units.unit\_number}\\
+Availability & \key{custom\_objects.units.availablenot\_available}\\
+Stage & \key{custom\_objects.units.stages}\\
+Rooms & \key{custom\_objects.units.rooms}\\
+Bedrooms & \key{custom\_objects.units.bedrooms}\\
+Floor & \key{custom\_objects.units.floor}\\
+Style & \key{custom\_objects.units.style}\\
+Total SF & \key{custom\_objects.units.total\_sf}\\
+Move-in Ready & \key{custom\_objects.units.movein\_ready}\\
+Asking / Sale Price & \key{custom\_objects.units.asking\_\_sale\_price}\\
+Price Per SF & \key{custom\_objects.units.price\_per\_sf}\\
+Inventory Deducted & \key{custom\_objects.units.inventory\_deducted}\\
+Locked Date & \key{custom\_objects.units.locked\_date}\\
+\end{tabularx}
+
+\section{Appendix B: Definition of Done}
+The project is done when Mount Realty staff can import inventory, trust the relationships and totals, see live inventory clearly and move an Opportunity through approved stages without creating a duplicate reservation or requiring manual count adjustments.
+
+A polished interface without secure backend writes is not done. Records created without verified associations are not done. Counts that depend on manual spreadsheet totals are not done. A workflow that can reserve the same Unit twice is not done.
+
+\callout{teal}{lightteal}
+\textbf{Final standard.} The system should be simple for staff, strict with data, honest about failures and safe to run repeatedly.
+\endcallout
+
+\end{document}
